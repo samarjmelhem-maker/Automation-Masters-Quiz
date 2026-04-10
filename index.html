@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pharmacy Automation Quiz — PIS Masters</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0D2D6B;
+  --teal: #0A7E8C;
+  --yellow: #FFD166;
+  --green: #06D6A0;
+  --coral: #FF6B6B;
+  --lavender: #845EC2;
+  --orange: #FF9A3C;
+  --bg: #F2F5FF;
+  --card-border: #D0DAF0;
+  --white: #FFFFFF;
+  --shadow: 0 2px 12px rgba(13,45,107,0.10);
+  --radius: 14px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--navy);
+  min-height: 100vh;
+}
+/* ── Header bar ── */
+.top-bar {
+  background: linear-gradient(135deg, var(--navy) 0%, #163A80 100%);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 3px 18px rgba(13,45,107,0.25);
+}
+.top-bar .logo {
+  color: var(--yellow);
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: 0.3px;
+}
+.top-bar .timer-box {
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,209,102,0.45);
+  color: var(--yellow);
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 6px 18px;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+.top-bar .timer-box.danger { border-color: var(--coral); color: var(--coral); animation: pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
+.top-bar .progress-pill {
+  background: rgba(255,255,255,0.12);
+  color: var(--white);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 20px;
+  display: none;
+}
+
+/* ── Screens ── */
+.screen { display:none; max-width:780px; margin:0 auto; padding:32px 20px 80px; }
+.screen.active { display:block; animation: fadeUp 0.4s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Cards ── */
+.card {
+  background: var(--white);
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 28px 26px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.card .accent-strip {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 5px;
+  border-radius: var(--radius) 0 0 var(--radius);
+}
+
+/* ── Welcome screen ── */
+.welcome-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.welcome-header h1 {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+.welcome-header .subtitle {
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 1rem;
+}
+.welcome-header .course-info {
+  margin-top: 10px;
+  font-size: 0.88rem;
+  color: #5a6a8a;
+  line-height: 1.6;
+}
+.rules-list {
+  list-style: none;
+  padding: 0;
+}
+.rules-list li {
+  padding: 10px 0 10px 36px;
+  position: relative;
+  font-size: 0.93rem;
+  line-height: 1.55;
+  border-bottom: 1px solid #eef1f8;
+}
+.rules-list li:last-child { border-bottom: none; }
+.rules-list li::before {
+  content: attr(data-icon);
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  font-size: 1.1rem;
+}
+
+/* ── Forms ── */
+.form-group { margin-bottom: 18px; }
+.form-group label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin-bottom: 6px;
+  color: var(--navy);
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--card-border);
+  border-radius: 10px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.95rem;
+  color: var(--navy);
+  background: var(--bg);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(10,126,140,0.12);
+}
+.form-group .error-msg {
+  color: var(--coral);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 4px;
+  display: none;
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 32px;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--teal), #0A6E7C);
+  color: var(--white);
+  box-shadow: 0 4px 14px rgba(10,126,140,0.3);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(10,126,140,0.4); }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+.btn-secondary {
+  background: var(--navy);
+  color: var(--white);
+}
+.btn-coral {
+  background: linear-gradient(135deg, var(--coral), #e55a5a);
+  color: var(--white);
+}
+.btn-full { width: 100%; }
+.btn .spinner {
+  width: 18px; height: 18px;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  display: none;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── Question styles ── */
+.q-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.q-badge.basic { background: #E8F5E9; color: #2E7D32; }
+.q-badge.advanced { background: #FFF3E0; color: #E65100; }
+.q-type-tag {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--lavender);
+  margin-bottom: 10px;
+}
+.q-stem {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.65;
+  margin-bottom: 20px;
+  color: var(--navy);
+}
+/* Single & multi-select options */
+.option-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1.5px solid var(--card-border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--white);
+}
+.option-item:hover { border-color: var(--teal); background: #F0FAFB; }
+.option-item.selected { border-color: var(--teal); background: #E6F7F9; box-shadow: 0 0 0 2px rgba(10,126,140,0.15); }
+.option-item .radio-check {
+  width: 22px; height: 22px;
+  border: 2px solid var(--card-border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.option-item .radio-check.checkbox { border-radius: 5px; }
+.option-item.selected .radio-check {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+.option-item.selected .radio-check::after {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--white);
+  border-radius: 50%;
+}
+.option-item.selected .radio-check.checkbox::after {
+  content: '✓';
+  color: var(--white);
+  font-size: 14px;
+  font-weight: 800;
+  width: auto; height: auto;
+  background: none;
+  border-radius: 0;
+}
+.option-label {
+  font-size: 0.93rem;
+  line-height: 1.5;
+  color: #2a3a5c;
+}
+
+/* Matching question */
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eef1f8;
+}
+.match-row:last-child { border-bottom: none; }
+.match-item-label {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.match-select {
+  width: 280px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.88rem;
+  background: var(--bg);
+  color: var(--navy);
+}
+
+/* ── Result screen ── */
+.score-circle {
+  width: 140px; height: 140px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-weight: 800;
+  font-size: 2.2rem;
+  color: var(--white);
+}
+.score-circle .out-of { font-size: 0.85rem; font-weight: 600; opacity: 0.85; }
+.score-high { background: linear-gradient(135deg, var(--green), var(--teal)); }
+.score-mid { background: linear-gradient(135deg, var(--orange), var(--yellow)); }
+.score-low { background: linear-gradient(135deg, var(--coral), #c0392b); }
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 18px;
+  font-size: 0.78rem;
+  color: #8a96b0;
+  line-height: 1.5;
+}
+.footer strong { color: var(--navy); }
+
+/* ── Token input ── */
+.token-input-group {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.token-digit {
+  width: 52px; height: 58px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 800;
+  border: 2px solid var(--card-border);
+  border-radius: 10px;
+  font-family: 'Nunito', sans-serif;
+  color: var(--navy);
+  background: var(--bg);
+  transition: border-color 0.2s;
+}
+.token-digit:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 3px rgba(10,126,140,0.12); }
+
+/* ── Lockout overlay ── */
+.lockout-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(13,45,107,0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+  gap: 16px;
+  color: var(--white);
+  text-align: center;
+  padding: 24px;
+}
+.lockout-overlay h2 { font-size: 1.5rem; color: var(--yellow); }
+.lockout-overlay p { font-size: 1rem; opacity: 0.85; max-width: 400px; }
+
+/* ── Alert banner ── */
+.alert-banner {
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: none;
+}
+.alert-banner.error { background: #FDEDEE; color: var(--coral); border: 1px solid #F8D0D0; }
+.alert-banner.success { background: #E8F8F1; color: #1B8C5A; border: 1px solid #C3EDDA; }
+.alert-banner.info { background: #EBF5FF; color: #1565C0; border: 1px solid #B8D9F5; }
+
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; top:0;left:0;right:0;bottom:0;
+  background: rgba(242,245,255,0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 500;
+  flex-direction: column;
+  gap: 14px;
+}
+.loading-overlay .ld-spinner {
+  width: 44px; height: 44px;
+  border: 4px solid var(--card-border);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.loading-overlay p { font-weight: 700; color: var(--navy); font-size: 0.95rem; }
+
+/* Review answer styles */
+.review-correct { border-left: 4px solid var(--green) !important; background: #E8F8F1 !important; }
+.review-wrong { border-left: 4px solid var(--coral) !important; background: #FFF0F0 !important; }
+.review-answer-tag {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+@media (max-width: 600px) {
+  .top-bar { padding: 10px 14px; }
+  .top-bar .logo { font-size: 0.88rem; }
+  .screen { padding: 20px 14px 60px; }
+  .card { padding: 20px 16px; }
+  .match-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .match-select { width: 100%; }
+  .token-digit { width: 42px; height: 48px; font-size: 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="ld-spinner"></div>
+  <p id="loadingMsg">Processing...</p>
+</div>
+
+<!-- Lockout overlay -->
+<div class="lockout-overlay" id="lockoutOverlay">
+  <h2>⏱ Time's Up</h2>
+  <p>Your 15-minute quiz window has expired. Your answers have been automatically submitted.</p>
+  <p style="font-size:0.85rem;margin-top:8px;opacity:0.7;">Your results will be emailed to you shortly.</p>
+</div>
+
+<!-- Top bar -->
+<div class="top-bar">
+  <div class="logo">Pharmacy Automation Quiz</div>
+  <div class="timer-box" id="timerBox">
+    <span>⏱</span>
+    <span id="timerDisplay">20:00</span>
+  </div>
+  <div class="progress-pill" id="progressPill">Q 1 / 10</div>
+</div>
+
+<!-- ═══════════════ SCREEN 1: WELCOME ═══════════════ -->
+<div class="screen active" id="screenWelcome">
+  <div class="welcome-header">
+    <h1>Pharmacy Automation Assessment</h1>
+    <div class="subtitle">Pharmacy Information Systems — Masters Programme</div>
+    <div class="course-info">
+      Dr. Samar Melhem &nbsp;·&nbsp; School of Pharmacy, University of Jordan<br>
+      Pharmacy Administration Masters &nbsp;·&nbsp; Quiz: Pharmacy Automation Module
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="accent-strip" style="background:var(--teal)"></div>
+    <h3 style="margin-bottom:14px; font-size:1rem;">📋 Quiz Rules &amp; Instructions</h3>
+    <ul class="rules-list">
+      <li data-icon="⏱">This quiz has a <strong>strict 15-minute time limit</strong>. The timer starts once you verify your access token. When time expires the quiz closes automatically and your answers are submitted as-is.</li>
+      <li data-icon="➡️">Navigation is <strong>one-directional</strong> during the answering phase. Once you move forward, you cannot return until you complete all 10 questions.</li>
+      <li data-icon="🔄">After answering all 10 questions, you enter a <strong>revision phase</strong> where you may revisit <strong>each question once</strong> to review or change your answer — all within the 15-minute window.</li>
+      <li data-icon="📝">There are <strong>10 questions</strong> in mixed formats: single-answer MCQs, select-two MCQs, "all EXCEPT" MCQs, and matching questions. Each question is worth <strong>1 mark</strong> (total: 10 marks).</li>
+      <li data-icon="✅">For <strong>select-two questions</strong>, you must choose exactly two options. Both must be correct to earn the mark.</li>
+      <li data-icon="🔗">For <strong>matching questions</strong>, all pairings must be correct to earn the mark.</li>
+      <li data-icon="🔒">You will register with your university email and receive a <strong>one-time access token</strong>. Only authorised students may take this quiz.</li>
+      <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the 15-minute quiz window closes</strong> — not immediately upon submission.</li>
+      <li data-icon="🎓">Questions assess <strong>understanding and application</strong>, not surface recall. Read each scenario carefully.</li>
+    </ul>
+  </div>
+
+  <button class="btn btn-primary btn-full" onclick="showScreen('screenRegister')">
+    Begin Registration →
+  </button>
+
+  <div class="footer">
+    <strong>Dr. Samar Melhem</strong> · Assistant Professor of Digital Health &amp; Health Informatics<br>
+    School of Pharmacy, University of Jordan · sa.melhem@ju.edu.jo · Office 225
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 2: REGISTRATION ═══════════════ -->
+<div class="screen" id="screenRegister">
+  <div class="card">
+    <div class="accent-strip" style="background:var(--yellow)"></div>
+    <h3 style="margin-bottom:18px;">🔐 Student Registration</h3>
+    <div class="alert-banner error" id="regError"></div>
+
+    <div class="form-group">
+      <label>Full Name</label>
+      <input type="text" id="regName" placeholder="e.g. Ahmad Al-Nabulsi" autocomplete="name">
+    </div>
+    <div class="form-group">
+      <label>Student ID</label>
+      <input type="text" id="regId" placeholder="e.g. 8240888" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>University Email</label>
+      <input type="email" id="regEmail" placeholder="e.g. AFN8240888@ju.edu.jo" autocomplete="email">
+      <div class="error-msg" id="emailErr">Only authorised @ju.edu.jo addresses may register.</div>
+    </div>
+
+    <button class="btn btn-primary btn-full" id="btnRegister" onclick="handleRegister()">
+      <span class="spinner" id="regSpinner"></span>
+      Send Access Token →
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 3: TOKEN VERIFICATION ═══════════════ -->
+<div class="screen" id="screenToken">
+  <div class="card" style="text-align:center;">
+    <div class="accent-strip" style="background:var(--green)"></div>
+    <h3 style="margin-bottom:8px;">📧 Enter Your Access Token</h3>
+    <p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:22px;">A 6-digit code has been sent to <strong id="tokenEmailDisplay"></strong>.<br>Enter it below to begin the quiz. The 20-minute timer starts immediately.</p>
+    <div class="alert-banner error" id="tokenError"></div>
+
+    <div class="token-input-group" id="tokenGroup">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="0">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="1">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="2">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="3">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="4">
+      <input class="token-digit" type="text" maxlength="1" inputmode="numeric" pattern="[0-9]" data-idx="5">
+    </div>
+
+    <button class="btn btn-primary btn-full" style="margin-top:22px;" id="btnVerify" onclick="handleVerifyToken()">
+      <span class="spinner" id="verifySpinner"></span>
+      Verify &amp; Start Quiz ⏱
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════ SCREEN 4: QUIZ ═══════════════ -->
+<div class="screen" id="screenQuiz"></div>
+
+<!-- ═══════════════ SCREEN 5: RESULTS ═══════════════ -->
+<div class="screen" id="screenResults"></div>
+
+<script>
+/* ================================================================
+   CONFIGURATION — REPLACE WITH YOUR DEPLOYED APPS SCRIPT URL
+   ================================================================ */
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwdYVCm0XCG2w7e-YLhsPcvh6KCqPc3_t8hFR-gE4eKLwWNmm6Q55kvdGZiTOCSdbVb/exec";
+
+/* ── Authorised student emails (whitelist) ── */
+var WHITELIST = [
+  "sa.melhem@ju.edu.jo",
+  "afn8240888@ju.edu.jo",
+  "dal8251151@ju.edu.jo",
+  "roz8241130@ju.edu.jo",
+  "asy8241023@ju.edu.jo",
+  "rgd8241025@ju.edu.jo",
+  "lyl8240829@ju.edu.jo",
+  "tsn8240876@ju.edu.jo",
+  "mys8240433@ju.edu.jo",
+  "yas8240038@ju.edu.jo"
+];
+
+/* ── Student data ── */
+var studentData = { name: "", id: "", email: "", token: "" };
+var quizStartTime = null;
+var timerInterval = null;
+var currentQ = 0;
+var answers = {};
+var revisited = {};   /* tracks which questions have been revisited */
+var quizPhase = "active"; /* "active" | "revision" | "done" */
+var TOTAL_TIME = 15 * 60;  /* 15 minutes total — hard close */
+
+/* ================================================================
+   QUESTION BANK — 10 QUESTIONS (5 Basic, 5 Advanced)
+   ================================================================ */
+var questions = [
+  /* ── Q1: Single Answer — BASIC ── */
+  {
+    num: 1,
+    level: "basic",
+    type: "single",
+    typeLabel: "Single Best Answer — Select ONE",
+    stem: "A hospital pharmacy in a country that traditionally uses bulk dispensing (counting loose tablets from large bottles) has secured funding for a dispensing robot. The pharmacy director proposes a phased two-year implementation plan. According to the module's foundational principles and the Applied Vignette of the robot that 'sat unused,' which of the following should constitute the FIRST phase of the plan?",
+    options: [
+      { key: "A", text: "Purchasing and installing the robot hardware to demonstrate commitment to the hospital board" },
+      { key: "B", text: "Converting the majority of the formulary to original pack dispensing with machine-readable barcodes before any robot procurement" },
+      { key: "C", text: "Training all pharmacy technicians and pharmacists in robot operation software" },
+      { key: "D", text: "Negotiating with the robot supplier for an extended warranty and service agreement" },
+      { key: "E", text: "Implementing an electronic prescribing system that integrates with the robot queue" }
+    ]
+  },
+  /* ── Q2: Select TWO — BASIC ── */
+  {
+    num: 2,
+    level: "basic",
+    type: "multi2",
+    typeLabel: "Select the TWO Correct Answers",
+    stem: "Wirral Hospitals NHS Trust was one of the earliest UK adopters of the ARX Speedcase robot. According to the specific quantitative evidence presented in the module, which TWO of the following outcomes were documented at Wirral following implementation?",
+    options: [
+      { key: "A", text: "A 50% reduction in total dispensing errors within 4 months of implementation" },
+      { key: "B", text: "Complete elimination of all labelling errors through integrated automatic label printing" },
+      { key: "C", text: "Redeployment of 3.5 WTE staff from the dispensary to ward-based clinical pharmacy services" },
+      { key: "D", text: "A reduction in storage footprint from 14.3 m² to 10.2 m²" },
+      { key: "E", text: "Dispensing volume increased by 19% while total staff time in the dispensary decreased by 19%" }
+    ]
+  },
+  /* ── Q3: All EXCEPT — BASIC ── */
+  {
+    num: 3,
+    level: "basic",
+    type: "except",
+    typeLabel: "All of the Following Are TRUE — Select the EXCEPTION",
+    stem: "Regarding the three converging drivers that led to the emergence of pharmacy automation, as described in the module's Foundations of Automation block, all of the following are true EXCEPT:",
+    options: [
+      { key: "A", text: "Exponential growth in prescription volumes exceeded the capacity of manual staffing models" },
+      { key: "B", text: "Healthcare funders demanded efficiency improvements, and robots offered long-term cost savings compared to hiring additional staff" },
+      { key: "C", text: "Government regulatory agencies mandated that all hospitals adopt dispensing robots within a defined timeframe" },
+      { key: "D", text: "Dispensing errors were causing measurable patient harm, and technology offered a systematic solution" },
+      { key: "E", text: "Pharmacy automation evolved from logistics and retail warehouse management principles applied to standardised medicines" }
+    ]
+  },
+  /* ── Q4: Single Answer — BASIC ── */
+  {
+    num: 4,
+    level: "basic",
+    type: "single",
+    typeLabel: "Single Best Answer — Select ONE",
+    stem: "The ARX Rowa Speedcase uses random storage, while the Baxter Consis uses channel (fixed-location) storage. According to the module, a growing hospital whose formulary changes frequently would find random storage advantageous over channel storage primarily because:",
+    options: [
+      { key: "A", text: "Random storage systems do not require any barcode scanning during the loading process" },
+      { key: "B", text: "Random storage allows any medicine to occupy any available space with digital location tracking, accommodating new medicines without physical reconfiguration" },
+      { key: "C", text: "Random storage systems require less floor space because they use taller vertical storage columns" },
+      { key: "D", text: "Random storage eliminates the need for a computerised tracking system, reducing IT costs" },
+      { key: "E", text: "Random storage is the only model compatible with refrigerated medicine storage modules" }
+    ]
+  },
+  /* ── Q5: Matching — BASIC ── */
+  {
+    num: 5,
+    level: "basic",
+    type: "matching",
+    typeLabel: "Matching — Select the Correct Pairing for Each Hospital",
+    stem: "Match each UK early adopter hospital to the specific implementation outcome or lesson documented in the module:",
+    matchItems: [
+      { id: "m1", label: "Wirral Hospitals NHS Trust" },
+      { id: "m2", label: "Royal Wolverhampton" },
+      { id: "m3", label: "West Wales Hospital, Carmarthen" },
+      { id: "m4", label: "NHS Greater Glasgow & Clyde" }
+    ],
+    matchOptions: [
+      { key: "A", text: "Enabled remote out-of-hours dispensing by on-call pharmacists — critical for a rural setting" },
+      { key: "B", text: "Installed the Baxter Consis but later regretted the choice due to inflexibility as the formulary grew" },
+      { key: "C", text: "Centralised model replacing 14 pharmacy stores, serving 4,500 weekly destinations with 96% first-time accuracy" },
+      { key: "D", text: "Documented a 50% error reduction in 4 months and redeployed 3.5 WTE staff to ward-based clinical services" }
+    ]
+  },
+  /* ── Q6: Select TWO — ADVANCED ── */
+  {
+    num: 6,
+    level: "advanced",
+    type: "multi2",
+    typeLabel: "Select the TWO Correct Answers",
+    stem: "A hospital implements a dispensing robot and reports a 60% reduction in total dispensing errors at 12 months. However, labelling errors now constitute 35% of all remaining errors, up from 8% pre-implementation. Applying the module's concepts of error redistribution and human-machine interface failure, which TWO statements correctly explain this pattern?",
+    options: [
+      { key: "A", text: "Selection and strength errors were eliminated by barcode-guided robotic picking, but labelling remained a manual handoff point where the technician must match dispensed medicine to the correct patient label" },
+      { key: "B", text: "The robot's barcode scanner was miscalibrated, causing it to retrieve incorrect medicines that were then labelled incorrectly" },
+      { key: "C", text: "High confidence in the robot's reliability reduced staff vigilance during the remaining manual checking steps — the automation complacency effect — making labelling errors less likely to be intercepted" },
+      { key: "D", text: "The increase in labelling errors is statistically insignificant because overall error counts are lower" },
+      { key: "E", text: "Labelling errors increased because the robot physically damaged medicine packaging during retrieval, obscuring product identification" }
+    ]
+  },
+  /* ── Q7: All EXCEPT — ADVANCED ── */
+  {
+    num: 7,
+    level: "advanced",
+    type: "except",
+    typeLabel: "All of the Following Are TRUE — Select the EXCEPTION",
+    stem: "A large teaching hospital installs electronic ward cabinets. Observational audits reveal that the Emergency Department (ED) shows excellent compliance, while medical and surgical wards show widespread workarounds including bulk removal of multiple patients' medicines simultaneously. Based on the module's analysis of ward-level automation and sociotechnical systems, all of the following correctly explain this divergence EXCEPT:",
+    options: [
+      { key: "A", text: "The ED naturally operates a just-in-time workflow that aligns with the cabinet's design assumption of individual patient-specific access" },
+      { key: "B", text: "Medical and surgical wards use batch medication round workflows where one nurse collects medicines for multiple patients sequentially, creating a fundamental mismatch with the cabinet's access model" },
+      { key: "C", text: "The ward workaround pattern indicates implementation failure — the technology works (as ED success proves) but workflow redesign was not managed during deployment" },
+      { key: "D", text: "The electronic ward cabinets installed on medical and surgical wards were manufactured by a different supplier and had inferior hardware compared to the ED cabinets" },
+      { key: "E", text: "Staff are responding rationally to workflow pressure — the workaround pattern reflects a sociotechnical mismatch, not staff non-compliance" }
+    ]
+  },
+  /* ── Q8: Single Answer — ADVANCED ── */
+  {
+    num: 8,
+    level: "advanced",
+    type: "single",
+    typeLabel: "Single Best Answer — Select ONE",
+    stem: "A community pharmacy automates methadone dispensing with biometric identity verification and pre-measured dose delivery. The system achieves 99.9% measurement accuracy. However, the senior pharmacist opposes full automation. According to the module's Applied Vignette 3 (The Methadone Dilemma) and the hybrid design principle, the senior pharmacist's opposition is MOST justified by which concern?",
+    options: [
+      { key: "A", text: "Biometric fingerprint systems have unacceptably high false-positive identification rates in pharmacy settings" },
+      { key: "B", text: "The automated system cannot perform the point-of-dispensing clinical assessment of patient intoxication, withdrawal symptoms, or diversion risk — which for methadone is the core clinical intervention" },
+      { key: "C", text: "The capital cost of automated methadone systems exceeds the pharmacy's budget and cannot be recovered through operational savings" },
+      { key: "D", text: "Patients will refuse to use biometric systems due to privacy concerns, causing them to discontinue treatment" },
+      { key: "E", text: "Automated measurement is less accurate than experienced pharmacist manual measurement for liquid preparations" }
+    ]
+  },
+  /* ── Q9: Select TWO — ADVANCED ── */
+  {
+    num: 9,
+    level: "advanced",
+    type: "multi2",
+    typeLabel: "Select the TWO Correct Answers",
+    stem: "NHS Greater Glasgow & Clyde implemented a centralised robotic distribution model replacing 14 individual pharmacy stores. According to the module, which TWO factors represent the most significant operational considerations of this centralised approach?",
+    options: [
+      { key: "A", text: "A single point of failure — robot downtime or transport disruption simultaneously affects all served hospitals" },
+      { key: "B", text: "The centralised model requires each hospital to maintain its own full backup robot as a contingency" },
+      { key: "C", text: "The system achieved 96% first-time accuracy across 4,500 weekly destinations while holding 12 days of stock valued at £2 million" },
+      { key: "D", text: "Centralised models are incompatible with controlled drug distribution due to transport security regulations" },
+      { key: "E", text: "The centralised approach eliminates the need for any pharmacist involvement at the receiving hospital sites" }
+    ]
+  },
+  /* ── Q10: Matching — ADVANCED ── */
+  {
+    num: 10,
+    level: "advanced",
+    type: "matching",
+    typeLabel: "Matching — Select the Correct Core Concept for Each Scenario",
+    stem: "Match each scenario to the module's core examination concept that it BEST illustrates:",
+    matchItems: [
+      { id: "n1", label: "A robot achieves 60% fewer total errors, but labelling errors now constitute 35% of remaining errors — up from 8%" },
+      { id: "n2", label: "A ward cabinet works perfectly in the ED but generates workarounds on medical wards due to batch medication rounds" },
+      { id: "n3", label: "A pharmacist checking robot output catches fewer errors than when checking manual dispensing, despite using the same protocol" },
+      { id: "n4", label: "A hospital purchases a robot before converting from bulk to original pack dispensing, and the robot sits unused for months" }
+    ],
+    matchOptions: [
+      { key: "A", text: "Error Redistribution — automation eliminates some error types but creates or amplifies others at human-machine interface points" },
+      { key: "B", text: "Automation Complacency — high system reliability reduces human vigilance at remaining manual steps" },
+      { key: "C", text: "Technology Failure vs Implementation Failure — the technology works, but deployment without workflow redesign causes the failure" },
+      { key: "D", text: "Workflow Prerequisites — technology readiness requires workflow readiness first; incompatible processes cannot be automated" }
+    ]
+  }
+];
+
+
+/* ================================================================
+   SCREEN NAVIGATION
+   ================================================================ */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showLoading(msg) {
+  document.getElementById('loadingMsg').textContent = msg || 'Processing...';
+  document.getElementById('loadingOverlay').style.display = 'flex';
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+function showAlert(id, msg, type) {
+  var el = document.getElementById(id);
+  el.className = 'alert-banner ' + (type || 'error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideAlert(id) {
+  document.getElementById(id).style.display = 'none';
+}
+
+/* ================================================================
+   REGISTRATION
+   ================================================================ */
+var TEST_MODE = (APPS_SCRIPT_URL === "YOUR_APPS_SCRIPT_WEB_APP_URL_HERE");
+var testToken = "";
+
+function handleRegister() {
+  hideAlert('regError');
+  var name = document.getElementById('regName').value.trim();
+  var sid = document.getElementById('regId').value.trim();
+  var email = document.getElementById('regEmail').value.trim().toLowerCase();
+
+  if (!name || !sid || !email) {
+    showAlert('regError', 'Please complete all fields.');
+    return;
+  }
+  if (!email.endsWith('@ju.edu.jo')) {
+    showAlert('regError', 'Only @ju.edu.jo email addresses are permitted.');
+    return;
+  }
+  if (WHITELIST.indexOf(email) === -1) {
+    showAlert('regError', 'This email is not on the authorised student list for this quiz.');
+    return;
+  }
+
+  studentData.name = name;
+  studentData.id = sid;
+  studentData.email = email;
+
+  document.getElementById('regSpinner').style.display = 'inline-block';
+  document.getElementById('btnRegister').disabled = true;
+
+  if (TEST_MODE) {
+    /* ── TEST MODE: generate token locally and show on screen ── */
+    testToken = "";
+    for (var t = 0; t < 6; t++) testToken += Math.floor(Math.random() * 10).toString();
+    setTimeout(function() {
+      document.getElementById('regSpinner').style.display = 'none';
+      document.getElementById('btnRegister').disabled = false;
+      document.getElementById('tokenEmailDisplay').textContent = email;
+      showScreen('screenToken');
+      showAlert('tokenError', '🧪 TEST MODE — Your token is: ' + testToken + '  (In production this arrives via email)', 'info');
+      setupTokenInputs();
+    }, 800);
+    return;
+  }
+
+  /* ── PRODUCTION: Send registration to Apps Script → token emailed ── */
+  var payload = JSON.stringify({
+    action: "register",
+    name: name,
+    studentId: sid,
+    email: email
+  });
+
+  fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    body: payload,
+    redirect: "follow"
+  }).then(function(r) { return r.text(); }).then(function() {
+    document.getElementById('regSpinner').style.display = 'none';
+    document.getElementById('btnRegister').disabled = false;
+    document.getElementById('tokenEmailDisplay').textContent = email;
+    showScreen('screenToken');
+    setupTokenInputs();
+  }).catch(function() {
+    document.getElementById('regSpinner').style.display = 'none';
+    document.getElementById('btnRegister').disabled = false;
+    document.getElementById('tokenEmailDisplay').textContent = email;
+    showScreen('screenToken');
+    setupTokenInputs();
+  });
+}
+
+/* ── Token digit auto-advance ── */
+function setupTokenInputs() {
+  var digits = document.querySelectorAll('#tokenGroup .token-digit');
+  digits.forEach(function(inp, i) {
+    inp.value = '';
+    inp.addEventListener('input', function() {
+      this.value = this.value.replace(/[^0-9]/g, '');
+      if (this.value && i < digits.length - 1) digits[i + 1].focus();
+    });
+    inp.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value && i > 0) digits[i - 1].focus();
+    });
+    inp.addEventListener('paste', function(e) {
+      e.preventDefault();
+      var paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+      for (var j = 0; j < Math.min(paste.length, 6); j++) {
+        digits[j].value = paste[j];
+      }
+      if (paste.length >= 6) digits[5].focus();
+    });
+  });
+  digits[0].focus();
+}
+
+/* ================================================================
+   TOKEN VERIFICATION
+   ================================================================ */
+function handleVerifyToken() {
+  hideAlert('tokenError');
+  var digits = document.querySelectorAll('#tokenGroup .token-digit');
+  var token = '';
+  digits.forEach(function(d) { token += d.value; });
+
+  if (token.length !== 6) {
+    showAlert('tokenError', 'Please enter all 6 digits of your access token.');
+    return;
+  }
+
+  if (TEST_MODE) {
+    /* ── TEST MODE: validate locally ── */
+    if (token !== testToken) {
+      showAlert('tokenError', 'Invalid token. The correct test token was shown above.');
+      return;
+    }
+    studentData.token = token;
+    startQuiz();
+    return;
+  }
+
+  studentData.token = token;
+  document.getElementById('verifySpinner').style.display = 'inline-block';
+  document.getElementById('btnVerify').disabled = true;
+
+  /* Verify token via Apps Script */
+  var payload = JSON.stringify({
+    action: "verify",
+    email: studentData.email,
+    token: token
+  });
+
+  fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    body: payload,
+    redirect: "follow"
+  }).then(function(r) { return r.text(); }).then(function() {
+    document.getElementById('verifySpinner').style.display = 'none';
+    document.getElementById('btnVerify').disabled = false;
+    startQuiz();
+  }).catch(function() {
+    document.getElementById('verifySpinner').style.display = 'none';
+    document.getElementById('btnVerify').disabled = false;
+    startQuiz();
+  });
+}
+
+/* ================================================================
+   QUIZ ENGINE
+   ================================================================ */
+function startQuiz() {
+  currentQ = 0;
+  answers = {};
+  revisited = {};
+  quizPhase = "active";
+  quizStartTime = Date.now();
+  document.getElementById('timerBox').style.display = 'flex';
+  document.getElementById('progressPill').style.display = 'block';
+  startTimer();
+  renderQuestion(0);
+  showScreen('screenQuiz');
+}
+
+/* ── Single 15-minute countdown ── */
+function startTimer() {
+  document.getElementById('timerDisplay').textContent = '15:00';
+  timerInterval = setInterval(function() {
+    var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+    var remaining = TOTAL_TIME - elapsed;
+
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      autoSubmit();
+      return;
+    }
+    if (remaining <= 120) {
+      document.getElementById('timerBox').classList.add('danger');
+    }
+    var m = Math.floor(remaining / 60);
+    var s = remaining % 60;
+    document.getElementById('timerDisplay').textContent =
+      (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
+}
+
+function autoSubmit() {
+  document.getElementById('lockoutOverlay').style.display = 'flex';
+  submitQuiz();
+}
+
+/* ── Render a question ── */
+function renderQuestion(idx) {
+  var q = questions[idx];
+  var container = document.getElementById('screenQuiz');
+  document.getElementById('progressPill').textContent = 'Q ' + (idx + 1) + ' / 10';
+
+  var isRevision = (quizPhase === "revision");
+
+  var html = '<div class="card" style="overflow:visible;">';
+  html += '<div class="accent-strip" style="background:var(--navy)"></div>';
+
+  html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">';
+  html += '<div class="q-badge ' + q.level + '">' + (q.level === 'basic' ? '📗 Basic' : '📙 Advanced') + ' · Q' + q.num + '</div>';
+  if (isRevision) {
+    html += '<span style="font-size:0.75rem;font-weight:700;color:var(--navy);background:#E8EBF5;padding:3px 10px;border-radius:12px;">📝 Reviewing</span>';
+  }
+  html += '</div>';
+
+  html += '<div class="q-type-tag">' + q.typeLabel + '</div>';
+  html += '<div class="q-stem">' + q.stem + '</div>';
+
+  if (q.type === 'single' || q.type === 'except') {
+    q.options.forEach(function(opt) {
+      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectSingle(this, ' + idx + ')">';
+      html += '<div class="radio-check"></div>';
+      html += '<div class="option-label"><strong>' + opt.key + '.</strong> ' + opt.text + '</div>';
+      html += '</div>';
+    });
+  } else if (q.type === 'multi2') {
+    q.options.forEach(function(opt) {
+      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectMulti(this, ' + idx + ')">';
+      html += '<div class="radio-check checkbox"></div>';
+      html += '<div class="option-label"><strong>' + opt.key + '.</strong> ' + opt.text + '</div>';
+      html += '</div>';
+    });
+  } else if (q.type === 'matching') {
+    q.matchItems.forEach(function(item) {
+      html += '<div class="match-row">';
+      html += '<div class="match-item-label">' + item.label + '</div>';
+      html += '<select class="match-select" data-mid="' + item.id + '" onchange="matchChanged(' + idx + ')">';
+      html += '<option value="">— Select —</option>';
+      q.matchOptions.forEach(function(mo) {
+        html += '<option value="' + mo.key + '">' + mo.key + '. ' + mo.text + '</option>';
+      });
+      html += '</select>';
+      html += '</div>';
+    });
+  }
+
+  html += '<div style="margin-top:24px; text-align:right;">';
+  if (isRevision) {
+    html += '<button class="btn btn-secondary" id="btnNext" onclick="saveRevision(' + idx + ')" disabled>Save &amp; Return to Review</button>';
+  } else if (idx < questions.length - 1) {
+    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + idx + ')" disabled>Confirm &amp; Next →</button>';
+  } else {
+    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + idx + ')" disabled>Confirm &amp; Review →</button>';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  container.innerHTML = html;
+
+  /* ── Restore previous answer ── */
+  var prev = answers[idx];
+  if (prev) {
+    if (q.type === 'single' || q.type === 'except') {
+      var items = container.querySelectorAll('.option-item');
+      items.forEach(function(item) {
+        if (item.getAttribute('data-key') === prev[0]) {
+          item.classList.add('selected');
+        }
+      });
+      document.getElementById('btnNext').disabled = false;
+    } else if (q.type === 'multi2') {
+      var items = container.querySelectorAll('.option-item');
+      items.forEach(function(item) {
+        if (prev.indexOf(item.getAttribute('data-key')) !== -1) {
+          item.classList.add('selected');
+        }
+      });
+      document.getElementById('btnNext').disabled = (prev.length !== 2);
+    } else if (q.type === 'matching') {
+      var selects = container.querySelectorAll('.match-select');
+      var allFilled = true;
+      selects.forEach(function(s) {
+        var mid = s.getAttribute('data-mid');
+        if (prev[mid]) {
+          s.value = prev[mid];
+        } else {
+          allFilled = false;
+        }
+      });
+      document.getElementById('btnNext').disabled = !allFilled;
+    }
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Selection handlers ── */
+function selectSingle(el, qIdx) {
+  el.parentNode.querySelectorAll('.option-item').forEach(function(o) { o.classList.remove('selected'); });
+  el.classList.add('selected');
+  answers[qIdx] = [el.getAttribute('data-key')];
+  document.getElementById('btnNext').disabled = false;
+}
+
+function selectMulti(el, qIdx) {
+  el.classList.toggle('selected');
+  var selected = el.parentNode.querySelectorAll('.option-item.selected');
+  var keys = [];
+  selected.forEach(function(s) { keys.push(s.getAttribute('data-key')); });
+
+  /* Enforce exactly 2 selections */
+  if (keys.length > 2) {
+    el.classList.remove('selected');
+    return;
+  }
+  answers[qIdx] = keys;
+  document.getElementById('btnNext').disabled = (keys.length !== 2);
+}
+
+function matchChanged(qIdx) {
+  var selects = document.querySelectorAll('.match-select');
+  var allFilled = true;
+  var map = {};
+  selects.forEach(function(s) {
+    if (!s.value) allFilled = false;
+    map[s.getAttribute('data-mid')] = s.value;
+  });
+  answers[qIdx] = map;
+  document.getElementById('btnNext').disabled = !allFilled;
+}
+
+function nextQuestion(idx) {
+  if (idx < questions.length - 1) {
+    currentQ = idx + 1;
+    renderQuestion(currentQ);
+  } else {
+    /* All questions answered — enter revision phase */
+    quizPhase = "revision";
+    showRevisionScreen();
+  }
+}
+
+/* ── Revision screen: all answers listed, each revisitable once ── */
+function showRevisionScreen() {
+  var container = document.getElementById('screenQuiz');
+  document.getElementById('progressPill').textContent = 'Review & Revise';
+
+  var allRevisited = true;
+  for (var c = 0; c < questions.length; c++) {
+    if (!revisited[c]) { allRevisited = false; break; }
+  }
+
+  var html = '<div class="card">';
+  html += '<div class="accent-strip" style="background:var(--navy)"></div>';
+  html += '<h3 style="margin-bottom:6px;">📋 Review Your Answers</h3>';
+  html += '<p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:20px;">You may revisit <strong>each question once</strong> to review or change your answer. When ready, click Submit Quiz. The timer is still running.</p>';
+
+  questions.forEach(function(q, i) {
+    var ans = answers[i];
+    var ansText = '—';
+    if (ans) {
+      if (q.type === 'matching') {
+        var pairs = [];
+        for (var k in ans) pairs.push(k.replace('m','').replace('n','') + ' → ' + ans[k]);
+        ansText = pairs.join(', ');
+      } else {
+        ansText = ans.join(', ');
+      }
+    }
+
+    var alreadyRevisited = revisited[i] === true;
+    var btnStyle = !alreadyRevisited
+      ? 'background:var(--navy);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-family:Nunito,sans-serif;font-weight:700;font-size:0.8rem;cursor:pointer;'
+      : 'background:#e0e4ec;color:#8a96b0;border:none;padding:6px 14px;border-radius:8px;font-family:Nunito,sans-serif;font-weight:700;font-size:0.8rem;cursor:not-allowed;';
+
+    html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #eef1f8;">';
+    html += '<div style="flex:1;">';
+    html += '<span style="font-size:0.82rem;font-weight:700;color:var(--navy);">Q' + q.num + '</span>';
+    html += '<span style="font-size:0.82rem; color:#5a6a8a; margin-left:10px;">Answer: <strong>' + ansText + '</strong></span>';
+    if (alreadyRevisited) {
+      html += '<span style="font-size:0.72rem;color:#8a96b0;margin-left:8px;">(revised)</span>';
+    }
+    html += '</div>';
+    if (!alreadyRevisited) {
+      html += '<button style="' + btnStyle + '" onclick="reviseQuestion(' + i + ')">Revisit</button>';
+    } else {
+      html += '<button style="' + btnStyle + '" disabled>Done</button>';
+    }
+    html += '</div>';
+  });
+
+  html += '<div style="margin-top:24px; text-align:center;">';
+  html += '<button class="btn btn-primary btn-full" onclick="finalSubmit()">Submit Quiz</button>';
+  html += '</div>';
+  html += '</div>';
+
+  container.innerHTML = html;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function reviseQuestion(idx) {
+  if (revisited[idx]) return;
+  revisited[idx] = true;
+  currentQ = idx;
+  renderQuestion(idx);
+}
+
+function saveRevision(idx) {
+  /* Return to revision screen after editing */
+  showRevisionScreen();
+}
+
+function finalSubmit() {
+  clearInterval(timerInterval);
+  submitQuiz();
+}
+
+/* ================================================================
+   GRADING & SUBMISSION
+   ================================================================ */
+function collectAnswers() {
+  var results = [];
+  questions.forEach(function(q, i) {
+    results.push({
+      qNum: q.num,
+      studentAnswer: answers[i] || null
+    });
+  });
+  return results;
+}
+
+function submitQuiz() {
+  showLoading('Submitting your quiz...');
+  var collected = collectAnswers();
+  var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+  var mins = Math.floor(elapsed / 60);
+  var secs = elapsed % 60;
+  var duration = mins + 'm ' + secs + 's';
+
+  /* Build per-question array for server-side auto-marking */
+  var perQuestion = [];
+  questions.forEach(function(q, i) {
+    perQuestion.push({
+      qNum: q.num,
+      answer: answers[i] || null
+    });
+  });
+
+  var payload = JSON.stringify({
+    action: "submit",
+    name: studentData.name,
+    studentId: studentData.id,
+    email: studentData.email,
+    duration: duration,
+    perQuestion: JSON.stringify(perQuestion),
+    timestamp: new Date().toISOString(),
+    resultDetails: JSON.stringify(collected)
+  });
+
+  fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    body: payload,
+    redirect: "follow"
+  }).then(function(r) { return r.text(); }).then(function() {
+    hideLoading();
+    renderResults(duration);
+  }).catch(function() {
+    hideLoading();
+    renderResults(duration);
+  });
+}
+
+/* ================================================================
+   RESULTS SCREEN
+   ================================================================ */
+function renderResults(duration) {
+  document.getElementById('lockoutOverlay').style.display = 'none';
+  document.getElementById('timerBox').style.display = 'none';
+  document.getElementById('progressPill').style.display = 'none';
+
+  var answeredCount = 0;
+  for (var i = 0; i < questions.length; i++) {
+    if (answers[i]) answeredCount++;
+  }
+
+  var html = '<div class="card" style="text-align:center;">';
+  html += '<div class="accent-strip" style="background:var(--navy)"></div>';
+  html += '<div style="font-size:3rem; margin-bottom:10px;">✅</div>';
+  html += '<h2 style="margin-bottom:6px; color:var(--navy);">Quiz Submitted Successfully</h2>';
+  html += '<p style="color:#5a6a8a; font-size:0.9rem; margin-bottom:24px;">Time used: ' + duration + ' · Questions answered: ' + answeredCount + ' / 10</p>';
+  html += '</div>';
+
+  html += '<div class="card">';
+  html += '<div class="accent-strip" style="background:var(--teal)"></div>';
+  html += '<h3 style="margin-bottom:12px; font-size:1rem;">📧 What Happens Next?</h3>';
+  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">Your answers have been recorded and <strong>auto-graded on the server</strong>. To ensure exam integrity, results are held until the 15-minute quiz window closes.</p>';
+  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">You will receive a detailed email at <strong>' + studentData.email + '</strong> containing:</p>';
+  html += '<div style="background:var(--bg); border-radius:10px; padding:16px 20px; margin:12px 0;">';
+  html += '<p style="font-size:0.88rem; line-height:1.8; color:var(--navy);">';
+  html += '✓ &nbsp;Your total score out of 10<br>';
+  html += '✓ &nbsp;Per-question correct / incorrect status<br>';
+  html += '✓ &nbsp;The correct answer for every question<br>';
+  html += '✓ &nbsp;Detailed feedback and explanations';
+  html += '</p>';
+  html += '</div>';
+  html += '<p style="font-size:0.85rem; color:#5a6a8a; margin-top:12px;">This email will be sent shortly after all quizzes have been collected. Please check your inbox (and spam folder).</p>';
+  html += '</div>';
+
+  html += '<div class="card" style="text-align:center; background:linear-gradient(135deg, #F2F5FF, #E6F7F9);">';
+  html += '<p style="font-size:0.9rem; color:var(--navy); font-weight:600;">Thank you for completing the assessment.</p>';
+  html += '<p style="font-size:0.82rem; color:#5a6a8a; margin-top:4px;">You may close this window now.</p>';
+  html += '</div>';
+
+  html += '<div class="footer" style="margin-top:24px;">';
+  html += '<strong>Dr. Samar Melhem</strong> · Assistant Professor of Digital Health &amp; Health Informatics<br>';
+  html += 'Pharmacy Administration Masters · Pharmacy Information Systems<br>';
+  html += 'School of Pharmacy, University of Jordan · sa.melhem@ju.edu.jo · Office 225';
+  html += '</div>';
+
+  var container = document.getElementById('screenResults');
+  container.innerHTML = html;
+  showScreen('screenResults');
+}
+
+/* ── Prevent back navigation ── */
+history.pushState(null, null, location.href);
+window.addEventListener('popstate', function() {
+  history.pushState(null, null, location.href);
+});
+
+/* ── Prevent page unload during quiz ── */
+window.addEventListener('beforeunload', function(e) {
+  if (quizStartTime && !document.getElementById('screenResults').classList.contains('active')) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+</body>
+</html>
