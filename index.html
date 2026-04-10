@@ -441,7 +441,7 @@ body {
 <!-- Lockout overlay -->
 <div class="lockout-overlay" id="lockoutOverlay">
   <h2>⏱ Time's Up</h2>
-  <p>Your 15-minute quiz window has expired. Your answers have been automatically submitted.</p>
+  <p>Your 27-minute quiz window has expired. Your answers have been automatically submitted.</p>
   <p style="font-size:0.85rem;margin-top:8px;opacity:0.7;">Your results will be emailed to you shortly.</p>
 </div>
 
@@ -470,14 +470,14 @@ body {
     <div class="accent-strip" style="background:var(--teal)"></div>
     <h3 style="margin-bottom:14px; font-size:1rem;">📋 Quiz Rules &amp; Instructions</h3>
     <ul class="rules-list">
-      <li data-icon="⏱">This quiz has a <strong>strict 15-minute time limit</strong>. The timer starts once you verify your access token. When time expires the quiz closes automatically and your answers are submitted as-is.</li>
+      <li data-icon="⏱">This quiz has a <strong>25-minute answering phase</strong> followed by a <strong>2-minute revision phase</strong> (27 minutes total). The timer starts once you verify your access token. When time expires the quiz closes automatically.</li>
       <li data-icon="➡️">Navigation is <strong>one-directional</strong> during the answering phase. Once you move forward, you cannot return until you complete all 10 questions.</li>
-      <li data-icon="🔄">After answering all 10 questions, you enter a <strong>revision phase</strong> where you may revisit <strong>each question once</strong> to review or change your answer — all within the 15-minute window.</li>
+      <li data-icon="🔄">After answering all 10 questions, you enter a <strong>2-minute revision phase</strong> where you may revisit <strong>each question once</strong> to review or change your answer. The quiz closes automatically after a total of 27 minutes.</li>
       <li data-icon="📝">There are <strong>10 questions</strong> in mixed formats: single-answer MCQs, select-two MCQs, "all EXCEPT" MCQs, and matching questions. Each question is worth <strong>1 mark</strong> (total: 10 marks).</li>
       <li data-icon="✅">For <strong>select-two questions</strong>, you must choose exactly two options. Both must be correct to earn the mark.</li>
       <li data-icon="🔗">For <strong>matching questions</strong>, all pairings must be correct to earn the mark.</li>
       <li data-icon="🔒">You will register with your university email and receive a <strong>one-time access token</strong>. Only authorised students may take this quiz.</li>
-      <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the 15-minute quiz window closes</strong> — not immediately upon submission.</li>
+      <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the quiz window closes</strong> — not immediately upon submission.</li>
       <li data-icon="🎓">Questions assess <strong>understanding and application</strong>, not surface recall. Read each scenario carefully.</li>
     </ul>
   </div>
@@ -578,7 +578,8 @@ var currentQ = 0;
 var answers = {};
 var revisited = {};   /* tracks which questions have been revisited */
 var quizPhase = "active"; /* "active" | "revision" | "done" */
-var TOTAL_TIME = 15 * 60;  /* 15 minutes total — hard close */
+var ANSWER_TIME = 25 * 60;  /* 25 min answering phase */
+var TOTAL_TIME = 27 * 60;  /* 27 min hard close (25 + 2 revision) */
 
 /* ================================================================
    QUESTION BANK — 10 QUESTIONS (5 Basic, 5 Advanced)
@@ -938,9 +939,9 @@ function startQuiz() {
   showScreen('screenQuiz');
 }
 
-/* ── Single 15-minute countdown ── */
+/* ── Two-phase timer: 25 min answering, then 2 min revision (27 total) ── */
 function startTimer() {
-  document.getElementById('timerDisplay').textContent = '15:00';
+  document.getElementById('timerDisplay').textContent = '25:00';
   timerInterval = setInterval(function() {
     var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
     var remaining = TOTAL_TIME - elapsed;
@@ -950,6 +951,13 @@ function startTimer() {
       autoSubmit();
       return;
     }
+
+    /* Force into revision phase at 25 min if still answering */
+    if (elapsed >= ANSWER_TIME && quizPhase === "active") {
+      quizPhase = "revision";
+      showRevisionScreen();
+    }
+
     if (remaining <= 120) {
       document.getElementById('timerBox').classList.add('danger');
     }
@@ -1263,7 +1271,7 @@ function renderResults(duration) {
   html += '<div class="card">';
   html += '<div class="accent-strip" style="background:var(--teal)"></div>';
   html += '<h3 style="margin-bottom:12px; font-size:1rem;">📧 What Happens Next?</h3>';
-  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">Your answers have been recorded and <strong>auto-graded on the server</strong>. To ensure exam integrity, results are held until the 15-minute quiz window closes.</p>';
+  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">Your answers have been recorded and <strong>auto-graded on the server</strong>. To ensure exam integrity, results are held until the quiz window closes.</p>';
   html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">You will receive a detailed email at <strong>' + studentData.email + '</strong> containing:</p>';
   html += '<div style="background:var(--bg); border-radius:10px; padding:16px 20px; margin:12px 0;">';
   html += '<p style="font-size:0.88rem; line-height:1.8; color:var(--navy);">';
