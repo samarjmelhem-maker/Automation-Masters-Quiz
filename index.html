@@ -56,6 +56,7 @@ body {
   gap: 8px;
 }
 .top-bar .timer-box.danger { border-color: var(--coral); color: var(--coral); animation: pulse 1s infinite; }
+.top-bar .timer-box.revision { border-color: var(--green); color: var(--green); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.55} }
 .top-bar .progress-pill {
   background: rgba(255,255,255,0.12);
@@ -374,6 +375,22 @@ body {
 .lockout-overlay h2 { font-size: 1.5rem; color: var(--yellow); }
 .lockout-overlay p { font-size: 1rem; opacity: 0.85; max-width: 400px; }
 
+/* ── Phase banner ── */
+.phase-banner {
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+  display: none;
+}
+.phase-banner.revision {
+  background: linear-gradient(135deg, #E8F8F1, #D4F0E4);
+  color: #0B7A50;
+  border: 1.5px solid #A8DCC4;
+}
+
 /* ── Alert banner ── */
 .alert-banner {
   padding: 12px 18px;
@@ -441,7 +458,7 @@ body {
 <!-- Lockout overlay -->
 <div class="lockout-overlay" id="lockoutOverlay">
   <h2>⏱ Time's Up</h2>
-  <p>Your 27-minute quiz window has expired. Your answers have been automatically submitted.</p>
+  <p>Your 22-minute quiz window has expired. Your answers have been automatically submitted.</p>
   <p style="font-size:0.85rem;margin-top:8px;opacity:0.7;">Your results will be emailed to you shortly.</p>
 </div>
 
@@ -449,7 +466,7 @@ body {
 <div class="top-bar">
   <div class="logo">Pharmacy Automation Quiz</div>
   <div class="timer-box" id="timerBox">
-    <span>⏱</span>
+    <span id="timerIcon">⏱</span>
     <span id="timerDisplay">20:00</span>
   </div>
   <div class="progress-pill" id="progressPill">Q 1 / 10</div>
@@ -470,14 +487,15 @@ body {
     <div class="accent-strip" style="background:var(--teal)"></div>
     <h3 style="margin-bottom:14px; font-size:1rem;">📋 Quiz Rules &amp; Instructions</h3>
     <ul class="rules-list">
-      <li data-icon="⏱">This quiz has a <strong>25-minute answering phase</strong> followed by a <strong>2-minute revision phase</strong> (27 minutes total). The timer starts once you verify your access token. When time expires the quiz closes automatically.</li>
-      <li data-icon="➡️">Navigation is <strong>one-directional</strong> during the answering phase. Once you move forward, you cannot return until you complete all 10 questions.</li>
-      <li data-icon="🔄">After answering all 10 questions, you enter a <strong>2-minute revision phase</strong> where you may revisit <strong>each question once</strong> to review or change your answer. The quiz closes automatically after a total of 27 minutes.</li>
+      <li data-icon="⏱"><strong>Total quiz window: 22 minutes.</strong> This is split into an <strong>answering phase (20 minutes)</strong> and a <strong>revision phase (2 minutes)</strong>. The quiz closes automatically at 22 minutes and submits your answers as-is.</li>
+      <li data-icon="➡️">Navigation is <strong>one-directional</strong> during the answering phase. Once you move forward, you cannot return until you complete all 10 questions or the 20-minute answering window ends.</li>
+      <li data-icon="🔄">At the end of the answering phase you enter a <strong>2-minute revision window</strong> where you may revisit <strong>each question once</strong> to review or change your answer.</li>
+      <li data-icon="💾">Your answers are <strong>saved automatically as you go</strong>. If your browser refreshes accidentally, you can resume where you left off (as long as the 22-minute window has not expired).</li>
       <li data-icon="📝">There are <strong>10 questions</strong> in mixed formats: single-answer MCQs, select-two MCQs, "all EXCEPT" MCQs, and matching questions. Each question is worth <strong>1 mark</strong> (total: 10 marks).</li>
       <li data-icon="✅">For <strong>select-two questions</strong>, you must choose exactly two options. Both must be correct to earn the mark.</li>
       <li data-icon="🔗">For <strong>matching questions</strong>, all pairings must be correct to earn the mark.</li>
       <li data-icon="🔒">You will register with your university email and receive a <strong>one-time access token</strong>. Only authorised students may take this quiz.</li>
-      <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the quiz window closes</strong> — not immediately upon submission.</li>
+      <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the 22-minute quiz window closes</strong> — not immediately upon submission.</li>
       <li data-icon="🎓">Questions assess <strong>understanding and application</strong>, not surface recall. Read each scenario carefully.</li>
     </ul>
   </div>
@@ -525,7 +543,7 @@ body {
   <div class="card" style="text-align:center;">
     <div class="accent-strip" style="background:var(--green)"></div>
     <h3 style="margin-bottom:8px;">📧 Enter Your Access Token</h3>
-    <p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:22px;">A 6-digit code has been sent to <strong id="tokenEmailDisplay"></strong>.<br>Enter it below to begin the quiz. The 20-minute timer starts immediately.</p>
+    <p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:22px;">A 6-digit code has been sent to <strong id="tokenEmailDisplay"></strong>.<br>Enter it below to begin the quiz. The 22-minute timer starts immediately.</p>
     <div class="alert-banner error" id="tokenError"></div>
 
     <div class="token-input-group" id="tokenGroup">
@@ -570,6 +588,16 @@ var WHITELIST = [
   "yas8240038@ju.edu.jo"
 ];
 
+/* ================================================================
+   TIMING CONFIGURATION
+   ================================================================ */
+var ACTIVE_PHASE_TIME   = 20 * 60;  /* 20 minutes answering */
+var REVISION_PHASE_TIME =  2 * 60;  /* 2 minutes revision */
+var TOTAL_TIME          = ACTIVE_PHASE_TIME + REVISION_PHASE_TIME;  /* 22 minutes hard close */
+
+/* ── Storage key for persistence ── */
+var STORAGE_KEY = "pims_quiz_state_v2";
+
 /* ── Student data ── */
 var studentData = { name: "", id: "", email: "", token: "" };
 var quizStartTime = null;
@@ -578,8 +606,41 @@ var currentQ = 0;
 var answers = {};
 var revisited = {};   /* tracks which questions have been revisited */
 var quizPhase = "active"; /* "active" | "revision" | "done" */
-var ANSWER_TIME = 25 * 60;  /* 25 min answering phase */
-var TOTAL_TIME = 27 * 60;  /* 27 min hard close (25 + 2 revision) */
+var submitted = false;
+
+/* ================================================================
+   STATE PERSISTENCE (localStorage)
+   ================================================================ */
+function saveState() {
+  try {
+    var state = {
+      studentData: studentData,
+      quizStartTime: quizStartTime,
+      currentQ: currentQ,
+      answers: answers,
+      revisited: revisited,
+      quizPhase: quizPhase,
+      submitted: submitted
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    /* localStorage may be disabled in private browsing — quiz still works, just no resume */
+  }
+}
+
+function loadState() {
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearState() {
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+}
 
 /* ================================================================
    QUESTION BANK — 10 QUESTIONS (5 Basic, 5 Advanced)
@@ -932,6 +993,8 @@ function startQuiz() {
   revisited = {};
   quizPhase = "active";
   quizStartTime = Date.now();
+  submitted = false;
+  saveState();
   document.getElementById('timerBox').style.display = 'flex';
   document.getElementById('progressPill').style.display = 'block';
   startTimer();
@@ -939,9 +1002,42 @@ function startQuiz() {
   showScreen('screenQuiz');
 }
 
-/* ── Two-phase timer: 25 min answering, then 2 min revision (27 total) ── */
+/* ── Resume quiz from saved state ── */
+function resumeQuiz(state) {
+  studentData   = state.studentData;
+  quizStartTime = state.quizStartTime;
+  currentQ      = state.currentQ;
+  answers       = state.answers || {};
+  revisited     = state.revisited || {};
+  quizPhase     = state.quizPhase || "active";
+  submitted     = state.submitted || false;
+
+  if (submitted) {
+    /* Already submitted — just show results */
+    document.getElementById('timerBox').style.display = 'none';
+    document.getElementById('progressPill').style.display = 'none';
+    var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+    var mins = Math.floor(elapsed / 60);
+    var secs = elapsed % 60;
+    renderResults(mins + 'm ' + secs + 's');
+    return;
+  }
+
+  document.getElementById('timerBox').style.display = 'flex';
+  document.getElementById('progressPill').style.display = 'block';
+  startTimer();
+
+  if (quizPhase === "revision") {
+    showRevisionScreen();
+  } else {
+    renderQuestion(currentQ);
+  }
+  showScreen('screenQuiz');
+}
+
+/* ── Unified 22-minute countdown with phase transition at 20min ── */
 function startTimer() {
-  document.getElementById('timerDisplay').textContent = '25:00';
+  updateTimerDisplay();
   timerInterval = setInterval(function() {
     var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
     var remaining = TOTAL_TIME - elapsed;
@@ -952,23 +1048,47 @@ function startTimer() {
       return;
     }
 
-    /* Force into revision phase at 25 min if still answering */
-    if (elapsed >= ANSWER_TIME && quizPhase === "active") {
+    /* Auto-transition from active → revision at 20 min mark */
+    if (quizPhase === "active" && elapsed >= ACTIVE_PHASE_TIME) {
       quizPhase = "revision";
+      saveState();
       showRevisionScreen();
     }
 
-    if (remaining <= 120) {
-      document.getElementById('timerBox').classList.add('danger');
-    }
-    var m = Math.floor(remaining / 60);
-    var s = remaining % 60;
-    document.getElementById('timerDisplay').textContent =
-      (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    updateTimerDisplay();
   }, 1000);
 }
 
+function updateTimerDisplay() {
+  var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+  var timerBox = document.getElementById('timerBox');
+  var timerIcon = document.getElementById('timerIcon');
+  var timerDisplay = document.getElementById('timerDisplay');
+
+  timerBox.classList.remove('danger', 'revision');
+
+  if (quizPhase === "active") {
+    var remaining = ACTIVE_PHASE_TIME - elapsed;
+    if (remaining < 0) remaining = 0;
+    timerIcon.textContent = '⏱';
+    if (remaining <= 120) timerBox.classList.add('danger');
+    var m = Math.floor(remaining / 60);
+    var s = remaining % 60;
+    timerDisplay.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ' answer';
+  } else if (quizPhase === "revision") {
+    var totalRemaining = TOTAL_TIME - elapsed;
+    if (totalRemaining < 0) totalRemaining = 0;
+    timerIcon.textContent = '🔄';
+    timerBox.classList.add('revision');
+    if (totalRemaining <= 30) { timerBox.classList.remove('revision'); timerBox.classList.add('danger'); }
+    var m = Math.floor(totalRemaining / 60);
+    var s = totalRemaining % 60;
+    timerDisplay.textContent = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ' revise';
+  }
+}
+
 function autoSubmit() {
+  if (submitted) return;
   document.getElementById('lockoutOverlay').style.display = 'flex';
   submitQuiz();
 }
@@ -981,7 +1101,13 @@ function renderQuestion(idx) {
 
   var isRevision = (quizPhase === "revision");
 
-  var html = '<div class="card" style="overflow:visible;">';
+  var html = '';
+
+  if (isRevision) {
+    html += '<div class="phase-banner revision" style="display:block;">🔄 Revision Phase — you are reviewing Q' + q.num + ' (one-time edit)</div>';
+  }
+
+  html += '<div class="card" style="overflow:visible;">';
   html += '<div class="accent-strip" style="background:var(--navy)"></div>';
 
   html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">';
@@ -1024,7 +1150,7 @@ function renderQuestion(idx) {
 
   html += '<div style="margin-top:24px; text-align:right;">';
   if (isRevision) {
-    html += '<button class="btn btn-secondary" id="btnNext" onclick="saveRevision(' + idx + ')" disabled>Save &amp; Return to Review</button>';
+    html += '<button class="btn btn-secondary" id="btnNext" onclick="saveRevision(' + idx + ')">Save &amp; Return to Review</button>';
   } else if (idx < questions.length - 1) {
     html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + idx + ')" disabled>Confirm &amp; Next →</button>';
   } else {
@@ -1045,7 +1171,7 @@ function renderQuestion(idx) {
           item.classList.add('selected');
         }
       });
-      document.getElementById('btnNext').disabled = false;
+      if (!isRevision) document.getElementById('btnNext').disabled = false;
     } else if (q.type === 'multi2') {
       var items = container.querySelectorAll('.option-item');
       items.forEach(function(item) {
@@ -1053,7 +1179,7 @@ function renderQuestion(idx) {
           item.classList.add('selected');
         }
       });
-      document.getElementById('btnNext').disabled = (prev.length !== 2);
+      if (!isRevision) document.getElementById('btnNext').disabled = (prev.length !== 2);
     } else if (q.type === 'matching') {
       var selects = container.querySelectorAll('.match-select');
       var allFilled = true;
@@ -1065,7 +1191,7 @@ function renderQuestion(idx) {
           allFilled = false;
         }
       });
-      document.getElementById('btnNext').disabled = !allFilled;
+      if (!isRevision) document.getElementById('btnNext').disabled = !allFilled;
     }
   }
 
@@ -1077,7 +1203,8 @@ function selectSingle(el, qIdx) {
   el.parentNode.querySelectorAll('.option-item').forEach(function(o) { o.classList.remove('selected'); });
   el.classList.add('selected');
   answers[qIdx] = [el.getAttribute('data-key')];
-  document.getElementById('btnNext').disabled = false;
+  saveState();
+  if (quizPhase === "active") document.getElementById('btnNext').disabled = false;
 }
 
 function selectMulti(el, qIdx) {
@@ -1092,7 +1219,8 @@ function selectMulti(el, qIdx) {
     return;
   }
   answers[qIdx] = keys;
-  document.getElementById('btnNext').disabled = (keys.length !== 2);
+  saveState();
+  if (quizPhase === "active") document.getElementById('btnNext').disabled = (keys.length !== 2);
 }
 
 function matchChanged(qIdx) {
@@ -1104,16 +1232,19 @@ function matchChanged(qIdx) {
     map[s.getAttribute('data-mid')] = s.value;
   });
   answers[qIdx] = map;
-  document.getElementById('btnNext').disabled = !allFilled;
+  saveState();
+  if (quizPhase === "active") document.getElementById('btnNext').disabled = !allFilled;
 }
 
 function nextQuestion(idx) {
   if (idx < questions.length - 1) {
     currentQ = idx + 1;
+    saveState();
     renderQuestion(currentQ);
   } else {
-    /* All questions answered — enter revision phase */
+    /* All questions answered — enter revision phase early */
     quizPhase = "revision";
+    saveState();
     showRevisionScreen();
   }
 }
@@ -1123,15 +1254,12 @@ function showRevisionScreen() {
   var container = document.getElementById('screenQuiz');
   document.getElementById('progressPill').textContent = 'Review & Revise';
 
-  var allRevisited = true;
-  for (var c = 0; c < questions.length; c++) {
-    if (!revisited[c]) { allRevisited = false; break; }
-  }
+  var html = '<div class="phase-banner revision" style="display:block;">🔄 Revision Phase — you have up to 2 minutes to revise. Each question can be revisited once.</div>';
 
-  var html = '<div class="card">';
+  html += '<div class="card">';
   html += '<div class="accent-strip" style="background:var(--navy)"></div>';
   html += '<h3 style="margin-bottom:6px;">📋 Review Your Answers</h3>';
-  html += '<p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:20px;">You may revisit <strong>each question once</strong> to review or change your answer. When ready, click Submit Quiz. The timer is still running.</p>';
+  html += '<p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:20px;">You may revisit <strong>each question once</strong> to review or change your answer. When ready, click Submit Quiz. The quiz will auto-submit when the 22-minute window closes.</p>';
 
   questions.forEach(function(q, i) {
     var ans = answers[i];
@@ -1180,11 +1308,13 @@ function reviseQuestion(idx) {
   if (revisited[idx]) return;
   revisited[idx] = true;
   currentQ = idx;
+  saveState();
   renderQuestion(idx);
 }
 
 function saveRevision(idx) {
   /* Return to revision screen after editing */
+  saveState();
   showRevisionScreen();
 }
 
@@ -1208,6 +1338,10 @@ function collectAnswers() {
 }
 
 function submitQuiz() {
+  if (submitted) return;
+  submitted = true;
+  saveState();
+
   showLoading('Submitting your quiz...');
   var collected = collectAnswers();
   var elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
@@ -1271,7 +1405,7 @@ function renderResults(duration) {
   html += '<div class="card">';
   html += '<div class="accent-strip" style="background:var(--teal)"></div>';
   html += '<h3 style="margin-bottom:12px; font-size:1rem;">📧 What Happens Next?</h3>';
-  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">Your answers have been recorded and <strong>auto-graded on the server</strong>. To ensure exam integrity, results are held until the quiz window closes.</p>';
+  html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">Your answers have been recorded and <strong>auto-graded on the server</strong>. To ensure exam integrity, results are held until the 22-minute quiz window closes.</p>';
   html += '<p style="font-size:0.92rem; line-height:1.65; color:#2a3a5c; margin-bottom:12px;">You will receive a detailed email at <strong>' + studentData.email + '</strong> containing:</p>';
   html += '<div style="background:var(--bg); border-radius:10px; padding:16px 20px; margin:12px 0;">';
   html += '<p style="font-size:0.88rem; line-height:1.8; color:var(--navy);">';
@@ -1300,6 +1434,30 @@ function renderResults(duration) {
   showScreen('screenResults');
 }
 
+/* ================================================================
+   RESUME / INITIALISATION
+   ================================================================ */
+(function initialise() {
+  var saved = loadState();
+  if (saved && saved.quizStartTime && !saved.submitted) {
+    var elapsed = Math.floor((Date.now() - saved.quizStartTime) / 1000);
+    if (elapsed >= TOTAL_TIME) {
+      /* Window already closed during absence — force-submit with whatever we have */
+      studentData   = saved.studentData;
+      quizStartTime = saved.quizStartTime;
+      answers       = saved.answers || {};
+      revisited     = saved.revisited || {};
+      currentQ      = saved.currentQ;
+      quizPhase     = "done";
+      document.getElementById('lockoutOverlay').style.display = 'flex';
+      submitQuiz();
+    } else {
+      /* Resume in progress */
+      resumeQuiz(saved);
+    }
+  }
+})();
+
 /* ── Prevent back navigation ── */
 history.pushState(null, null, location.href);
 window.addEventListener('popstate', function() {
@@ -1308,7 +1466,7 @@ window.addEventListener('popstate', function() {
 
 /* ── Prevent page unload during quiz ── */
 window.addEventListener('beforeunload', function(e) {
-  if (quizStartTime && !document.getElementById('screenResults').classList.contains('active')) {
+  if (quizStartTime && !submitted) {
     e.preventDefault();
     e.returnValue = '';
   }
