@@ -495,6 +495,7 @@ body {
       <li data-icon="✅">For <strong>select-two questions</strong>, you must choose exactly two options. Both must be correct to earn the mark.</li>
       <li data-icon="🔗">For <strong>matching questions</strong>, all pairings must be correct to earn the mark.</li>
       <li data-icon="🔒">You will register with your university email and receive a <strong>one-time access token</strong>. Only authorised students may take this quiz.</li>
+      <li data-icon="🎲">Each student receives a <strong>unique question sequence and unique answer option order</strong>. Comparing question numbers or answer letters with a classmate will not help — they will see different content under the same label.</li>
       <li data-icon="📧">Your <strong>score, correct answers, and detailed feedback</strong> will be emailed to you <strong>after the 22-minute quiz window closes</strong> — not immediately upon submission.</li>
       <li data-icon="🎓">Questions assess <strong>understanding and application</strong>, not surface recall. Read each scenario carefully.</li>
     </ul>
@@ -596,7 +597,7 @@ var REVISION_PHASE_TIME =  2 * 60;  /* 2 minutes revision */
 var TOTAL_TIME          = ACTIVE_PHASE_TIME + REVISION_PHASE_TIME;  /* 22 minutes hard close */
 
 /* ── Storage key for persistence ── */
-var STORAGE_KEY = "pims_quiz_state_v2";
+var STORAGE_KEY = "pims_quiz_state_v3";
 
 /* ── Student data ── */
 var studentData = { name: "", id: "", email: "", token: "" };
@@ -607,6 +608,105 @@ var answers = {};
 var revisited = {};   /* tracks which questions have been revisited */
 var quizPhase = "active"; /* "active" | "revision" | "done" */
 var submitted = false;
+
+/* ── Per-student randomisation state ── */
+var shuffleSeed = null;           /* seed locked at quiz start */
+var questionOrder = [];           /* e.g. [3, 0, 7, 1, ...] — index into master questions[] */
+var optionOrder = {};             /* { originalQIdx: ["C","A","E","B","D"] } */
+var matchItemOrder = {};          /* { originalQIdx: ["m3","m1","m4","m2"] } */
+var matchOptionOrder = {};        /* { originalQIdx: ["B","D","A","C"] } */
+
+/* ================================================================
+   SEEDED PRNG (Mulberry32) — deterministic shuffles per student
+   ================================================================ */
+function mulberry32(seed) {
+  return function() {
+    seed = (seed + 0x6D2B79F5) | 0;
+    var t = seed;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle(arr, rng) {
+  var copy = arr.slice();
+  for (var i = copy.length - 1; i > 0; i--) {
+    var j = Math.floor(rng() * (i + 1));
+    var tmp = copy[i]; copy[i] = copy[j]; copy[j] = tmp;
+  }
+  return copy;
+}
+
+/* ── Generate the full random layout once for this student ── */
+function generateShuffleLayout() {
+  /* High-entropy seed — combines timestamp + crypto random if available */
+  var seed;
+  if (window.crypto && window.crypto.getRandomValues) {
+    var a = new Uint32Array(1);
+    window.crypto.getRandomValues(a);
+    seed = a[0];
+  } else {
+    seed = (Date.now() ^ Math.floor(Math.random() * 0xFFFFFFFF)) >>> 0;
+  }
+  shuffleSeed = seed;
+
+  var rng = mulberry32(seed);
+
+  /* Shuffle question order (indices into master questions[]) */
+  var idxArr = [];
+  for (var i = 0; i < questions.length; i++) idxArr.push(i);
+  questionOrder = seededShuffle(idxArr, rng);
+
+  /* Shuffle options inside each question */
+  optionOrder = {};
+  matchItemOrder = {};
+  matchOptionOrder = {};
+
+  questions.forEach(function(q, origIdx) {
+    if (q.type === 'single' || q.type === 'except' || q.type === 'multi2') {
+      var keys = q.options.map(function(o) { return o.key; });
+      optionOrder[origIdx] = seededShuffle(keys, rng);
+    } else if (q.type === 'matching') {
+      var itemIds = q.matchItems.map(function(it) { return it.id; });
+      var optKeys = q.matchOptions.map(function(o) { return o.key; });
+      matchItemOrder[origIdx] = seededShuffle(itemIds, rng);
+      matchOptionOrder[origIdx] = seededShuffle(optKeys, rng);
+    }
+  });
+}
+
+/* ── Helpers to fetch question components in shuffled order ── */
+function getOriginalIdx(displayIdx) {
+  return questionOrder[displayIdx];
+}
+
+function getShuffledOptions(origIdx) {
+  var q = questions[origIdx];
+  var order = optionOrder[origIdx];
+  if (!order) return q.options;
+  var map = {};
+  q.options.forEach(function(o) { map[o.key] = o; });
+  return order.map(function(k) { return map[k]; });
+}
+
+function getShuffledMatchItems(origIdx) {
+  var q = questions[origIdx];
+  var order = matchItemOrder[origIdx];
+  if (!order) return q.matchItems;
+  var map = {};
+  q.matchItems.forEach(function(it) { map[it.id] = it; });
+  return order.map(function(id) { return map[id]; });
+}
+
+function getShuffledMatchOptions(origIdx) {
+  var q = questions[origIdx];
+  var order = matchOptionOrder[origIdx];
+  if (!order) return q.matchOptions;
+  var map = {};
+  q.matchOptions.forEach(function(o) { map[o.key] = o; });
+  return order.map(function(k) { return map[k]; });
+}
 
 /* ================================================================
    STATE PERSISTENCE (localStorage)
@@ -620,7 +720,12 @@ function saveState() {
       answers: answers,
       revisited: revisited,
       quizPhase: quizPhase,
-      submitted: submitted
+      submitted: submitted,
+      shuffleSeed: shuffleSeed,
+      questionOrder: questionOrder,
+      optionOrder: optionOrder,
+      matchItemOrder: matchItemOrder,
+      matchOptionOrder: matchOptionOrder
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch (e) {
@@ -994,6 +1099,7 @@ function startQuiz() {
   quizPhase = "active";
   quizStartTime = Date.now();
   submitted = false;
+  generateShuffleLayout();   /* ← lock in this student's unique sequence */
   saveState();
   document.getElementById('timerBox').style.display = 'flex';
   document.getElementById('progressPill').style.display = 'block';
@@ -1004,13 +1110,21 @@ function startQuiz() {
 
 /* ── Resume quiz from saved state ── */
 function resumeQuiz(state) {
-  studentData   = state.studentData;
-  quizStartTime = state.quizStartTime;
-  currentQ      = state.currentQ;
-  answers       = state.answers || {};
-  revisited     = state.revisited || {};
-  quizPhase     = state.quizPhase || "active";
-  submitted     = state.submitted || false;
+  studentData       = state.studentData;
+  quizStartTime     = state.quizStartTime;
+  currentQ          = state.currentQ;
+  answers           = state.answers || {};
+  revisited         = state.revisited || {};
+  quizPhase         = state.quizPhase || "active";
+  submitted         = state.submitted || false;
+  shuffleSeed       = state.shuffleSeed;
+  questionOrder     = state.questionOrder || [];
+  optionOrder       = state.optionOrder || {};
+  matchItemOrder    = state.matchItemOrder || {};
+  matchOptionOrder  = state.matchOptionOrder || {};
+
+  /* Safety: if shuffle layout is missing (old saved state), regenerate */
+  if (!questionOrder.length) generateShuffleLayout();
 
   if (submitted) {
     /* Already submitted — just show results */
@@ -1093,25 +1207,28 @@ function autoSubmit() {
   submitQuiz();
 }
 
-/* ── Render a question ── */
-function renderQuestion(idx) {
-  var q = questions[idx];
+/* ── Render a question ──
+   displayIdx = 0..9 (position in the student's shuffled sequence)
+   origIdx    = 0..9 (index into master questions[] — used for answer keys) */
+function renderQuestion(displayIdx) {
+  var origIdx = getOriginalIdx(displayIdx);
+  var q = questions[origIdx];
   var container = document.getElementById('screenQuiz');
-  document.getElementById('progressPill').textContent = 'Q ' + (idx + 1) + ' / 10';
+  document.getElementById('progressPill').textContent = 'Q ' + (displayIdx + 1) + ' / 10';
 
   var isRevision = (quizPhase === "revision");
 
   var html = '';
 
   if (isRevision) {
-    html += '<div class="phase-banner revision" style="display:block;">🔄 Revision Phase — you are reviewing Q' + q.num + ' (one-time edit)</div>';
+    html += '<div class="phase-banner revision" style="display:block;">🔄 Revision Phase — you are reviewing Q' + (displayIdx + 1) + ' (one-time edit)</div>';
   }
 
   html += '<div class="card" style="overflow:visible;">';
   html += '<div class="accent-strip" style="background:var(--navy)"></div>';
 
   html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:6px;">';
-  html += '<div class="q-badge ' + q.level + '">' + (q.level === 'basic' ? '📗 Basic' : '📙 Advanced') + ' · Q' + q.num + '</div>';
+  html += '<div class="q-badge ' + q.level + '">' + (q.level === 'basic' ? '📗 Basic' : '📙 Advanced') + ' · Q' + (displayIdx + 1) + '</div>';
   if (isRevision) {
     html += '<span style="font-size:0.75rem;font-weight:700;color:var(--navy);background:#E8EBF5;padding:3px 10px;border-radius:12px;">📝 Reviewing</span>';
   }
@@ -1121,27 +1238,34 @@ function renderQuestion(idx) {
   html += '<div class="q-stem">' + q.stem + '</div>';
 
   if (q.type === 'single' || q.type === 'except') {
-    q.options.forEach(function(opt) {
-      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectSingle(this, ' + idx + ')">';
+    var opts = getShuffledOptions(origIdx);
+    opts.forEach(function(opt, displayOptIdx) {
+      var displayLetter = String.fromCharCode(65 + displayOptIdx); /* A, B, C, D, E */
+      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectSingle(this, ' + displayIdx + ')">';
       html += '<div class="radio-check"></div>';
-      html += '<div class="option-label"><strong>' + opt.key + '.</strong> ' + opt.text + '</div>';
+      html += '<div class="option-label"><strong>' + displayLetter + '.</strong> ' + opt.text + '</div>';
       html += '</div>';
     });
   } else if (q.type === 'multi2') {
-    q.options.forEach(function(opt) {
-      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectMulti(this, ' + idx + ')">';
+    var opts = getShuffledOptions(origIdx);
+    opts.forEach(function(opt, displayOptIdx) {
+      var displayLetter = String.fromCharCode(65 + displayOptIdx);
+      html += '<div class="option-item" data-key="' + opt.key + '" onclick="selectMulti(this, ' + displayIdx + ')">';
       html += '<div class="radio-check checkbox"></div>';
-      html += '<div class="option-label"><strong>' + opt.key + '.</strong> ' + opt.text + '</div>';
+      html += '<div class="option-label"><strong>' + displayLetter + '.</strong> ' + opt.text + '</div>';
       html += '</div>';
     });
   } else if (q.type === 'matching') {
-    q.matchItems.forEach(function(item) {
+    var items = getShuffledMatchItems(origIdx);
+    var mopts = getShuffledMatchOptions(origIdx);
+    items.forEach(function(item) {
       html += '<div class="match-row">';
       html += '<div class="match-item-label">' + item.label + '</div>';
-      html += '<select class="match-select" data-mid="' + item.id + '" onchange="matchChanged(' + idx + ')">';
+      html += '<select class="match-select" data-mid="' + item.id + '" onchange="matchChanged(' + displayIdx + ')">';
       html += '<option value="">— Select —</option>';
-      q.matchOptions.forEach(function(mo) {
-        html += '<option value="' + mo.key + '">' + mo.key + '. ' + mo.text + '</option>';
+      mopts.forEach(function(mo, displayMoIdx) {
+        var displayLetter = String.fromCharCode(65 + displayMoIdx);
+        html += '<option value="' + mo.key + '">' + displayLetter + '. ' + mo.text + '</option>';
       });
       html += '</select>';
       html += '</div>';
@@ -1150,31 +1274,31 @@ function renderQuestion(idx) {
 
   html += '<div style="margin-top:24px; text-align:right;">';
   if (isRevision) {
-    html += '<button class="btn btn-secondary" id="btnNext" onclick="saveRevision(' + idx + ')">Save &amp; Return to Review</button>';
-  } else if (idx < questions.length - 1) {
-    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + idx + ')" disabled>Confirm &amp; Next →</button>';
+    html += '<button class="btn btn-secondary" id="btnNext" onclick="saveRevision(' + displayIdx + ')">Save &amp; Return to Review</button>';
+  } else if (displayIdx < questions.length - 1) {
+    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + displayIdx + ')" disabled>Confirm &amp; Next →</button>';
   } else {
-    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + idx + ')" disabled>Confirm &amp; Review →</button>';
+    html += '<button class="btn btn-primary" id="btnNext" onclick="nextQuestion(' + displayIdx + ')" disabled>Confirm &amp; Review →</button>';
   }
   html += '</div>';
   html += '</div>';
 
   container.innerHTML = html;
 
-  /* ── Restore previous answer ── */
-  var prev = answers[idx];
+  /* ── Restore previous answer (stored keyed by origIdx) ── */
+  var prev = answers[origIdx];
   if (prev) {
     if (q.type === 'single' || q.type === 'except') {
-      var items = container.querySelectorAll('.option-item');
-      items.forEach(function(item) {
+      var items2 = container.querySelectorAll('.option-item');
+      items2.forEach(function(item) {
         if (item.getAttribute('data-key') === prev[0]) {
           item.classList.add('selected');
         }
       });
       if (!isRevision) document.getElementById('btnNext').disabled = false;
     } else if (q.type === 'multi2') {
-      var items = container.querySelectorAll('.option-item');
-      items.forEach(function(item) {
+      var items2 = container.querySelectorAll('.option-item');
+      items2.forEach(function(item) {
         if (prev.indexOf(item.getAttribute('data-key')) !== -1) {
           item.classList.add('selected');
         }
@@ -1198,16 +1322,20 @@ function renderQuestion(idx) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ── Selection handlers ── */
-function selectSingle(el, qIdx) {
+/* ── Selection handlers ──
+   All answers are stored keyed by origIdx (into master questions[]),
+   NOT displayIdx, so grading stays consistent regardless of sequence. */
+function selectSingle(el, displayIdx) {
+  var origIdx = getOriginalIdx(displayIdx);
   el.parentNode.querySelectorAll('.option-item').forEach(function(o) { o.classList.remove('selected'); });
   el.classList.add('selected');
-  answers[qIdx] = [el.getAttribute('data-key')];
+  answers[origIdx] = [el.getAttribute('data-key')];
   saveState();
   if (quizPhase === "active") document.getElementById('btnNext').disabled = false;
 }
 
-function selectMulti(el, qIdx) {
+function selectMulti(el, displayIdx) {
+  var origIdx = getOriginalIdx(displayIdx);
   el.classList.toggle('selected');
   var selected = el.parentNode.querySelectorAll('.option-item.selected');
   var keys = [];
@@ -1218,12 +1346,13 @@ function selectMulti(el, qIdx) {
     el.classList.remove('selected');
     return;
   }
-  answers[qIdx] = keys;
+  answers[origIdx] = keys;
   saveState();
   if (quizPhase === "active") document.getElementById('btnNext').disabled = (keys.length !== 2);
 }
 
-function matchChanged(qIdx) {
+function matchChanged(displayIdx) {
+  var origIdx = getOriginalIdx(displayIdx);
   var selects = document.querySelectorAll('.match-select');
   var allFilled = true;
   var map = {};
@@ -1231,14 +1360,14 @@ function matchChanged(qIdx) {
     if (!s.value) allFilled = false;
     map[s.getAttribute('data-mid')] = s.value;
   });
-  answers[qIdx] = map;
+  answers[origIdx] = map;
   saveState();
   if (quizPhase === "active") document.getElementById('btnNext').disabled = !allFilled;
 }
 
-function nextQuestion(idx) {
-  if (idx < questions.length - 1) {
-    currentQ = idx + 1;
+function nextQuestion(displayIdx) {
+  if (displayIdx < questions.length - 1) {
+    currentQ = displayIdx + 1;
     saveState();
     renderQuestion(currentQ);
   } else {
@@ -1249,7 +1378,9 @@ function nextQuestion(idx) {
   }
 }
 
-/* ── Revision screen: all answers listed, each revisitable once ── */
+/* ── Revision screen: all answers listed in display order, each revisitable once ──
+   revisited[] is keyed by displayIdx (position in student's sequence).
+   answers[] is keyed by origIdx (master question index). */
 function showRevisionScreen() {
   var container = document.getElementById('screenQuiz');
   document.getElementById('progressPill').textContent = 'Review & Revise';
@@ -1261,39 +1392,56 @@ function showRevisionScreen() {
   html += '<h3 style="margin-bottom:6px;">📋 Review Your Answers</h3>';
   html += '<p style="font-size:0.88rem; color:#5a6a8a; margin-bottom:20px;">You may revisit <strong>each question once</strong> to review or change your answer. When ready, click Submit Quiz. The quiz will auto-submit when the 22-minute window closes.</p>';
 
-  questions.forEach(function(q, i) {
-    var ans = answers[i];
+  /* Iterate by DISPLAY order */
+  for (var displayIdx = 0; displayIdx < questions.length; displayIdx++) {
+    var origIdx = getOriginalIdx(displayIdx);
+    var q = questions[origIdx];
+    var ans = answers[origIdx];
     var ansText = '—';
+
     if (ans) {
       if (q.type === 'matching') {
+        /* Translate the stored matching answer back into the student's displayed letter positions */
+        var moOrder = matchOptionOrder[origIdx] || q.matchOptions.map(function(o){return o.key;});
+        var miOrder = matchItemOrder[origIdx]  || q.matchItems.map(function(i){return i.id;});
         var pairs = [];
-        for (var k in ans) pairs.push(k.replace('m','').replace('n','') + ' → ' + ans[k]);
+        miOrder.forEach(function(mid, mPos) {
+          var storedKey = ans[mid];
+          if (storedKey) {
+            var displayLetter = String.fromCharCode(65 + moOrder.indexOf(storedKey));
+            pairs.push((mPos + 1) + ' → ' + displayLetter);
+          }
+        });
         ansText = pairs.join(', ');
       } else {
-        ansText = ans.join(', ');
+        /* Translate original option keys → student's display letters */
+        var optO = optionOrder[origIdx] || q.options.map(function(o){return o.key;});
+        ansText = ans.map(function(k) {
+          return String.fromCharCode(65 + optO.indexOf(k));
+        }).join(', ');
       }
     }
 
-    var alreadyRevisited = revisited[i] === true;
+    var alreadyRevisited = revisited[displayIdx] === true;
     var btnStyle = !alreadyRevisited
       ? 'background:var(--navy);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-family:Nunito,sans-serif;font-weight:700;font-size:0.8rem;cursor:pointer;'
       : 'background:#e0e4ec;color:#8a96b0;border:none;padding:6px 14px;border-radius:8px;font-family:Nunito,sans-serif;font-weight:700;font-size:0.8rem;cursor:not-allowed;';
 
     html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #eef1f8;">';
     html += '<div style="flex:1;">';
-    html += '<span style="font-size:0.82rem;font-weight:700;color:var(--navy);">Q' + q.num + '</span>';
+    html += '<span style="font-size:0.82rem;font-weight:700;color:var(--navy);">Q' + (displayIdx + 1) + '</span>';
     html += '<span style="font-size:0.82rem; color:#5a6a8a; margin-left:10px;">Answer: <strong>' + ansText + '</strong></span>';
     if (alreadyRevisited) {
       html += '<span style="font-size:0.72rem;color:#8a96b0;margin-left:8px;">(revised)</span>';
     }
     html += '</div>';
     if (!alreadyRevisited) {
-      html += '<button style="' + btnStyle + '" onclick="reviseQuestion(' + i + ')">Revisit</button>';
+      html += '<button style="' + btnStyle + '" onclick="reviseQuestion(' + displayIdx + ')">Revisit</button>';
     } else {
       html += '<button style="' + btnStyle + '" disabled>Done</button>';
     }
     html += '</div>';
-  });
+  }
 
   html += '<div style="margin-top:24px; text-align:center;">';
   html += '<button class="btn btn-primary btn-full" onclick="finalSubmit()">Submit Quiz</button>';
@@ -1304,15 +1452,15 @@ function showRevisionScreen() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function reviseQuestion(idx) {
-  if (revisited[idx]) return;
-  revisited[idx] = true;
-  currentQ = idx;
+function reviseQuestion(displayIdx) {
+  if (revisited[displayIdx]) return;
+  revisited[displayIdx] = true;
+  currentQ = displayIdx;
   saveState();
-  renderQuestion(idx);
+  renderQuestion(displayIdx);
 }
 
-function saveRevision(idx) {
+function saveRevision(displayIdx) {
   /* Return to revision screen after editing */
   saveState();
   showRevisionScreen();
@@ -1327,11 +1475,12 @@ function finalSubmit() {
    GRADING & SUBMISSION
    ================================================================ */
 function collectAnswers() {
+  /* Answers are already keyed by original question number — grading works as-is. */
   var results = [];
-  questions.forEach(function(q, i) {
+  questions.forEach(function(q, origIdx) {
     results.push({
       qNum: q.num,
-      studentAnswer: answers[i] || null
+      studentAnswer: answers[origIdx] || null
     });
   });
   return results;
@@ -1349,14 +1498,23 @@ function submitQuiz() {
   var secs = elapsed % 60;
   var duration = mins + 'm ' + secs + 's';
 
-  /* Build per-question array for server-side auto-marking */
+  /* Build per-question array for server-side auto-marking — keyed by original qNum */
   var perQuestion = [];
-  questions.forEach(function(q, i) {
+  questions.forEach(function(q, origIdx) {
     perQuestion.push({
       qNum: q.num,
-      answer: answers[i] || null
+      answer: answers[origIdx] || null
     });
   });
+
+  /* Build the student's unique sequence map for integrity auditing */
+  var sequenceAudit = {
+    seed: shuffleSeed,
+    questionSequence: questionOrder.map(function(oi) { return questions[oi].num; }),
+    optionOrder: optionOrder,
+    matchItemOrder: matchItemOrder,
+    matchOptionOrder: matchOptionOrder
+  };
 
   var payload = JSON.stringify({
     action: "submit",
@@ -1365,6 +1523,7 @@ function submitQuiz() {
     email: studentData.email,
     duration: duration,
     perQuestion: JSON.stringify(perQuestion),
+    sequenceAudit: JSON.stringify(sequenceAudit),
     timestamp: new Date().toISOString(),
     resultDetails: JSON.stringify(collected)
   });
